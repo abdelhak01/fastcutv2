@@ -1,0 +1,71 @@
+name: Construire l'APK FASTCUT
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Installer le SDK Android
+        uses: android-actions/setup-android@v3
+
+      - name: Copier l'application web dans l'APK
+        run: |
+          mkdir -p apk/app/src/main/assets
+          cp index.html moteur.js dxf.js exports.js manifest.json \
+             icone.svg icone-192.png icone-512.png \
+             apk/app/src/main/assets/
+          echo "Fichiers embarqués :"
+          ls -la apk/app/src/main/assets/
+
+      - name: Préparer les icônes de l'application
+        run: |
+          cd apk/app/src/main/res
+          for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+            mkdir -p $d
+            cp ../../../../../icone-192.png $d/ic_launcher.png
+          done
+          rm -rf mipmap-hdpi/.gitkeep 2>/dev/null || true
+          ls mipmap-hdpi/
+
+      - name: Générer la clé de signature
+        run: |
+          cd apk
+          keytool -genkeypair -v -keystore fastcut.keystore \
+            -alias fastcut -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass fastcut2026 -keypass fastcut2026 \
+            -dname "CN=Abdelhak AITADDI, O=FASTCUT, L=Casablanca, C=MA"
+
+      - name: Compiler l'APK
+        run: |
+          cd apk
+          chmod +x gradlew 2>/dev/null || true
+          gradle wrapper --gradle-version 8.4 --no-daemon
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Renommer l'APK
+        run: |
+          cd apk
+          find . -name "*.apk" -print
+          cp app/build/outputs/apk/debug/app-debug.apk FASTCUT.apk
+
+      - name: Publier l'APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FASTCUT-apk
+          path: |
+            apk/FASTCUT.apk
+            apk/fastcut.keystore
