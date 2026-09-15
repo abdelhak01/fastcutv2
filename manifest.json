@@ -1,0 +1,16 @@
+{
+  "name": "FASTCUT — Dessin de gabarits",
+  "short_name": "FASTCUT",
+  "description": "Transforme les cotes relevées sur un gabarit en fichier DXF prêt pour la découpe.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d1826",
+  "theme_color": "#13263d",
+  "lang": "fr",
+  "icons": [
+    { "src": "icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
