@@ -402,3 +402,24 @@ export const SILHOUETTES = {
   7: [[6, 8], [62, 8], [86, 30], [96, 66], [64, 88], [26, 80], [10, 44]],
   8: [[8, 10], [58, 6], [88, 22], [96, 56], [74, 84], [40, 90], [12, 74], [4, 40]],
 };
+
+// ---------------------------------------------------------------
+// Rayon maximal d'un arrondi a un coin donne
+// ---------------------------------------------------------------
+/**
+ * Au-dela de ce rayon, l'arc depasserait l'un des deux cotes voisins :
+ * l'arrondi est alors impossible. L'interface s'en sert pour prevenir
+ * l'operateur au lieu d'ignorer l'arrondi sans rien dire.
+ */
+export function rayonMax(points, i) {
+  const n = points.length;
+  const Pp = points[(i - 1 + n) % n], Pc = points[i], Pn = points[(i + 1) % n];
+  const l1 = dist(Pc, Pp), l2 = dist(Pc, Pn);
+  if (l1 < 1e-9 || l2 < 1e-9) return 0;
+  const d1 = [(Pp[0] - Pc[0]) / l1, (Pp[1] - Pc[1]) / l1];
+  const d2 = [(Pn[0] - Pc[0]) / l2, (Pn[1] - Pc[1]) / l2];
+  const angle = Math.acos(Math.max(-1, Math.min(1, d1[0] * d2[0] + d1[1] * d2[1])));
+  if (angle < 1e-6 || angle > Math.PI - 1e-6) return 0;
+  // Marge de 1 % pour rester strictement sous la limite
+  return Math.floor(Math.min(l1, l2) * Math.tan(angle / 2) * 0.99);
+}

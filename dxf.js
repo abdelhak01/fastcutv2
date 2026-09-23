@@ -76,8 +76,21 @@ function nettoyer(texte) {
     .replace(/[^\x20-\x7E]/g, "_");
 }
 
-export function telechargerDXF(contenu, nomFichier) {
-  enregistrerFichier(contenu, nomFichier, "application/dxf");
+export function telechargerDXF(contenu, nomFichier, dossier) {
+  enregistrerFichier(contenu, nomFichier, "application/dxf", dossier);
+}
+
+/**
+ * Nom de dossier sur : on retire tout ce qui pourrait creer un
+ * sous-dossier imprevu ou remonter dans l'arborescence.
+ */
+export function nomDossierSur(nom) {
+  return String(nom || "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w -]/g, "_")
+    .replace(/\s+/g, "_")
+    .replace(/^[._]+|[._]+$/g, "")
+    .slice(0, 60);
 }
 
 /**
@@ -86,17 +99,25 @@ export function telechargerDXF(contenu, nomFichier) {
  *   telechargement classique ne fonctionne pas dans une WebView) ;
  * - dans un navigateur, par un lien de telechargement ordinaire.
  */
-export function enregistrerFichier(contenu, nomFichier, typeMime) {
+export function enregistrerFichier(contenu, nomFichier, typeMime, dossier) {
   const passerelle = typeof window !== "undefined" && window.AndroidFichiers;
+  const sousDossier = nomDossierSur(dossier);
 
   if (passerelle && passerelle.disponible && passerelle.disponible()) {
     // Encodage base64 compatible avec les accents
     const octets = new TextEncoder().encode(contenu);
     let binaire = "";
     for (const o of octets) binaire += String.fromCharCode(o);
-    passerelle.enregistrer(nomFichier, btoa(binaire), typeMime);
+    // Un chemin relatif dans le nom : l'application cree le sous-dossier
+    // dans Telechargements.
+    const chemin = sousDossier ? `${sousDossier}/${nomFichier}` : nomFichier;
+    passerelle.enregistrer(chemin, btoa(binaire), typeMime);
     return;
   }
+
+  // Dans un navigateur, on ne peut pas choisir de dossier : le nom du
+  // projet est alors mis en prefixe pour regrouper les fichiers.
+  if (sousDossier) nomFichier = `${sousDossier}_${nomFichier}`;
 
   const blob = new Blob([contenu], { type: typeMime });
   const url = URL.createObjectURL(blob);

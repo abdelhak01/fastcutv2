@@ -1,5 +1,5 @@
 /* FASTCUT — service worker : permet le fonctionnement hors connexion. */
-const CACHE = 'fastcut-v2';
+const CACHE = 'fastcut-essai-v3';
 const FICHIERS = ['./', './index.html', './moteur.js', './dxf.js',
                    './manifest.json', './icone.svg'];
 

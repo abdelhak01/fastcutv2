@@ -1,4 +1,5 @@
 import { enregistrerFichier } from './dxf.js';
+import { diagonalesRequises } from './moteur.js';
 
 /**
  * FASTCUT — exports complementaires
@@ -45,7 +46,8 @@ export function ouvrirFicheDecoupe(projet, panneaux, dessinerPanneau) {
 <style>
   @page{size:A4;margin:14mm}
   *{box-sizing:border-box}
-  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#1c2733;margin:0;font-size:12px}
+  body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#1c2733;
+    margin:0;font-size:12px;padding-bottom:30px}
   header{border-bottom:2px solid #2563c9;padding-bottom:10px;margin-bottom:18px;
     display:flex;align-items:flex-end;gap:14px}
   header h1{margin:0;font-size:20px;letter-spacing:.03em}
@@ -61,8 +63,12 @@ export function ouvrirFicheDecoupe(projet, panneaux, dessinerPanneau) {
   td{padding:2px 0}
   .mesures{font-size:10px;color:#5a6b7d;line-height:1.7}
   .mesures b{color:#1c2733;font-weight:600}
-  footer{margin-top:20px;padding-top:10px;border-top:1px solid #dde5ed;
-    font-size:10px;color:#5a6b7d;display:flex}
+  /* Pied de page fixe : Chrome le repete sur chaque page imprimee.
+     Le padding du body reserve la place pour qu'il ne recouvre rien. */
+  footer{position:fixed;left:0;right:0;bottom:0;background:#fff;
+    padding:6px 14mm 0;border-top:1px solid #dde5ed;
+    font-size:10px;color:#5a6b7d;display:flex;align-items:baseline}
+  footer b{color:#1c2733;font-size:11px}
   .avert{color:#b0521f}
   @media print{ .noprint{display:none} }
 </style></head><body>
@@ -80,7 +86,7 @@ export function ouvrirFicheDecoupe(projet, panneaux, dessinerPanneau) {
 ${lignes}
 <footer>
   <span class="avert">Vérifier les cotes avant découpe.</span>
-  <span style="margin-left:auto">Abdelhak AITADDI · +212 666 951 305</span>
+  <span style="margin-left:auto">${echapper(projet) || ''}</span>
 </footer>
 <div class="noprint" style="position:fixed;bottom:16px;right:16px">
   <button onclick="window.print()" style="padding:11px 18px;border:none;border-radius:8px;
@@ -94,7 +100,7 @@ ${lignes}
   const passerelle = typeof window !== 'undefined' && window.AndroidFichiers;
   if (passerelle && passerelle.disponible && passerelle.disponible()) {
     const nom = (projet || 'commande').replace(/[^\w-]/g, '_');
-    enregistrerFichier(html, `fiche-${nom}.html`, 'text/html');
+    enregistrerFichier(html, `fiche-${nom}.html`, 'text/html', projet);
     return true;
   }
 
@@ -105,13 +111,24 @@ ${lignes}
   return true;
 }
 
+/** Cote A, B, C... ; diagonale nommee par les coins qu'elle relie : 1-3. */
+function nomColonneDiagonale(i) {
+  const paire = diagonalesRequises(i + 4)[i];   // la liste est commune a toutes les formes
+  return paire ? `${paire[0] + 1}–${paire[1] + 1}` : `d${i + 1}`;
+}
+
 function mesuresListe(p) {
   const cotes = [];
   const diags = [];
-  Object.entries(p.valeurs || {}).forEach(([cle, v]) => {
-    const n = Math.round(parseFloat(v));
-    if (cle.startsWith('cote_')) cotes.push(`c${cle.slice(5)} <b>${n}</b>`);
-    else if (cle.startsWith('diag_')) diags.push(`d${cle.slice(5)} <b>${n}</b>`);
+  for (let i = 0; i < p.nCotes; i++) {
+    const v = p.valeurs?.[`cote_${i + 1}`];
+    if (v !== undefined && v !== '')
+      cotes.push(`${String.fromCharCode(65 + i)} <b>${Math.round(parseFloat(v))}</b>`);
+  }
+  diagonalesRequises(p.nCotes).forEach(([a, b], i) => {
+    const v = p.valeurs?.[`diag_${i + 1}`];
+    if (v !== undefined && v !== '')
+      diags.push(`${a + 1}–${b + 1} <b>${Math.round(parseFloat(v))}</b>`);
   });
   return `<div class="mesures">
     Côtés : ${cotes.join(' · ')}
@@ -133,8 +150,8 @@ export function construireCSV(projet, panneaux) {
 
   const entetes = ['Projet', 'Reference', 'Cotes', 'Largeur_mm', 'Hauteur_mm',
     'Surface_m2', 'Epaisseur_mm', 'Marge_mm', 'Surplus_mm', 'Ecart_mm', 'Note'];
-  for (let i = 1; i <= maxCotes; i++) entetes.push(`Cote_${i}`);
-  for (let i = 1; i <= maxDiags; i++) entetes.push(`Diagonale_${i}`);
+  for (let i = 1; i <= maxCotes; i++) entetes.push(`Cote_${String.fromCharCode(64 + i)}`);
+  for (let i = 1; i <= maxDiags; i++) entetes.push(`Diag_${nomColonneDiagonale(i - 1).replace('–', '-')}`);
 
   const cellule = (v) => {
     const t = String(v ?? '');
@@ -166,8 +183,8 @@ export function construireCSV(projet, panneaux) {
   return '\uFEFF' + [entetes.join(';'), ...lignes].join('\r\n');
 }
 
-export function telechargerTexte(contenu, nomFichier, type = 'text/csv;charset=utf-8') {
-  enregistrerFichier(contenu, nomFichier, type);
+export function telechargerTexte(contenu, nomFichier, type = 'text/csv;charset=utf-8', dossier) {
+  enregistrerFichier(contenu, nomFichier, type, dossier);
 }
 
 // ---------------------------------------------------------------
